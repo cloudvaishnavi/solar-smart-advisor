@@ -14,15 +14,46 @@ export const PaybackTracker: React.FC<PaybackTrackerProps> = ({
 }) => {
   const [info, setInfo] = useState<SubsidyInfo | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isLocalFallback, setIsLocalFallback] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchSubsidyData = async () => {
       try {
         setLoading(true);
+        setIsLocalFallback(false);
         const data = await api.getSubsidyInfo(solarCapacityKw, installationCost);
         setInfo(data);
       } catch (err) {
-        console.error('Failed to load subsidy info', err);
+        console.warn('Backend offline – computing subsidy locally.', err);
+        setIsLocalFallback(true);
+        // ── Local fallback: PM Surya Ghar Muft Bijli Yojana rules ──────────
+        // ₹30,000/kW for first 2 kW + ₹18,000/kW for the 3rd kW; max ₹78,000
+        const kw = solarCapacityKw;
+        const subsidyFirst2Kw     = Math.min(kw, 2) * 30000;
+        const subsidyExtra        = kw > 2 ? Math.min(kw - 2, 1) * 18000 : 0;
+        const subsidyAmount       = Math.min(subsidyFirst2Kw + subsidyExtra, 78000);
+        const netCost             = installationCost - subsidyAmount;
+
+        // Generation estimate: ~4.5 peak sun-hours/day (India average)
+        const unitsPerYear        = kw * 4.5 * 365;
+        // Average residential tariff ₹7/unit
+        const annualSavingsInr    = unitsPerYear * 7;
+        const monthlySavingsInr   = annualSavingsInr / 12;
+        // Grid emission factor 0.82 kg CO₂/kWh (CEA India average)
+        const co2OffsetKgPerYear  = unitsPerYear * 0.82;
+        const paybackYears        = netCost > 0 ? netCost / annualSavingsInr : 0;
+
+        setInfo({
+          solar_capacity_kw:        kw,
+          subsidy_amount:           subsidyAmount,
+          installation_cost:        installationCost,
+          net_cost:                 netCost,
+          annual_savings_inr:       annualSavingsInr,
+          monthly_savings_inr:      monthlySavingsInr,
+          co2_offset_kg_per_year:   co2OffsetKgPerYear,
+          units_generated_per_year: unitsPerYear,
+          payback_years:            paybackYears,
+        });
       } finally {
         setLoading(false);
       }
@@ -59,9 +90,15 @@ export const PaybackTracker: React.FC<PaybackTrackerProps> = ({
             <Landmark className="h-4.5 w-4.5 text-emerald-450" />
             <h3 className="text-sm font-bold text-white">PM Surya Ghar Subsidy</h3>
           </div>
-          <span className="px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-            GoI Approved
-          </span>
+          {isLocalFallback ? (
+            <span className="px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20">
+              Local Calc
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+              GoI Approved
+            </span>
+          )}
         </div>
 
         <p className="text-xs text-slate-400 mt-3 leading-relaxed">
