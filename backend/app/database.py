@@ -34,6 +34,11 @@ class Database:
 
     def connect(self):
         """Attempt to connect to MongoDB; fall back to JSON if unavailable."""
+        if settings.APP_ENV == "production" and settings.MONGODB_URI == "mongodb://localhost:27017":
+            error_msg = "❌ MONGODB_URI is set to default localhost in production! Please configure a remote MongoDB connection string."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
         try:
             self.client = MongoClient(
                 settings.MONGODB_URI,
@@ -43,13 +48,18 @@ class Database:
             self.client.admin.command("ping")
             self.db = self.client[settings.MONGODB_DB_NAME]
             logger.info("✅  Connected to MongoDB at %s", settings.MONGODB_URI)
-        except (ConnectionFailure, ServerSelectionTimeoutError):
+        except Exception as e:
+            if settings.APP_ENV == "production":
+                logger.error("❌ MongoDB connection failed in production: %s", e)
+                raise e
             logger.warning(
-                "⚠️  MongoDB unreachable — switching to local JSON fallback at %s",
+                "⚠️  MongoDB connection failed: %s — switching to local JSON fallback at %s",
+                e,
                 LOCAL_DB_PATH,
             )
             self.use_local = True
             self._init_local_db()
+
 
     def disconnect(self):
         """Gracefully close the MongoDB connection."""

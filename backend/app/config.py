@@ -25,8 +25,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = (
         "http://localhost:5173,"
         "http://localhost:3000,"
+        "https://solar-smart-advisor.vercel.app,"
+        "https://solar-smart-advisor-git-main-vaishnavi-solarsmart.vercel.app,"
         "https://*.vercel.app"
     )
+
 
     # ── Weather ──────────────────────────────────────────────────────────────
     WEATHER_CITY: str = "Bengaluru"   # Bengaluru | Delhi | Mumbai

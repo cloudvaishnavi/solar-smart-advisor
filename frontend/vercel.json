@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://solar-smart-advisor-pfbg.onrender.com/api/:path*"
+    }
+  ]
+}
