@@ -1,0 +1,12 @@
+city,day_type,hour,cut_probability,avg_duration_min,notes
+Bengaluru,weekday,18,0.30,45,Evening peak demand
+Bengaluru,weekday,19,0.35,60,Peak + grid stress
+Bengaluru,weekday,20,0.25,30,Post-peak
+Bengaluru,monsoon,18,0.50,90,Monsoon + peak combo
+Bengaluru,monsoon,19,0.55,90,High monsoon risk
+Delhi,weekday,14,0.20,30,Summer afternoon peak
+Delhi,weekday,18,0.25,45,Evening load surge
+Delhi,monsoon,18,0.40,60,Monsoon cut risk
+Mumbai,weekday,18,0.35,60,Mumbai grid stress
+Mumbai,monsoon,18,0.60,120,High monsoon flooding risk
+Mumbai,monsoon,19,0.65,120,Highest risk slot
