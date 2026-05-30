@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { api } from './services/api';
 import { SimulationResult, HouseholdSettings } from './types';
+import { computeLocalSimulation } from './utils/localSimulation';
 import { Header } from './components/Header/Header';
 import { LiveMetrics } from './components/dashboard/LiveMetrics';
 import { ModeSelector } from './components/dashboard/ModeSelector';
@@ -93,22 +94,24 @@ export const App: React.FC = () => {
     } catch (err: any) {
       console.error('Simulation failure', err);
       setErrorMsg('FastAPI back-end is currently offline. Running local calculations fallback.');
-      
-      // Attempt default fallback load
+
+      // Attempt backend default simulation first
       try {
         const fallback = await api.getDefaultSimulation();
-        // Override backend fallbacks with the current custom capacity details
         const updatedFallback = {
           ...fallback,
           settings: customSettings,
-          hourly_data: fallback.hourly_data.map(d => ({
+          hourly_data: fallback.hourly_data.map((d: any) => ({
             ...d,
             solar_generation_kw: d.solar_generation_kw * (customSettings.solar_capacity_kw / 3.0),
           }))
         };
         setResult(updatedFallback);
-      } catch (fallbackErr) {
-        console.error('Fallback failed too', fallbackErr);
+      } catch (_fallbackErr) {
+        // Both API paths failed — run fully local simulation engine
+        console.warn('Both API paths offline. Using built-in local simulation engine.');
+        const localResult = computeLocalSimulation(customSettings);
+        setResult(localResult);
       }
     } finally {
       setIsSimulating(false);
