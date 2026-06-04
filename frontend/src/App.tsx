@@ -19,7 +19,9 @@ import {
   X,
   User,
   Settings,
-  LogOut
+  LogOut,
+  Mail,
+  MapPin
 } from 'lucide-react';
 import { api } from './services/api';
 import { SimulationResult, HouseholdSettings } from './types';
@@ -31,6 +33,9 @@ import { SimulationChart } from './components/Charts/SimulationChart';
 import { DecisionLog } from './components/DecisionLog/DecisionLog';
 import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { PaybackTracker } from './components/PaybackTracker/PaybackTracker';
+import { SimulationModels } from './pages/SimulationModels';
+import { PmSuryaGharRoi } from './pages/PmSuryaGharRoi';
+import { GridTariffTables } from './pages/GridTariffTables';
 
 export const App: React.FC = () => {
   const [result, setResult] = useState<SimulationResult | null>(null);
@@ -51,6 +56,7 @@ export const App: React.FC = () => {
   const [dbMode, setDbMode] = useState<string>('local_json');
   const [highlightedHour, setHighlightedHour] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState<'dashboard' | 'simulation' | 'roi' | 'tariffs'>('dashboard');
   
   // Responsive sidebar states
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
@@ -207,6 +213,17 @@ export const App: React.FC = () => {
     handleRunSimulation(updated);
   };
 
+  const handleCapacityChange = (cap: number) => {
+    if (settings.solar_capacity_kw === cap) return;
+    const calculatedCost = cap * 60000;
+    const updated = {
+      ...settings,
+      solar_capacity_kw: cap,
+      installation_cost: calculatedCost
+    };
+    setSettings(updated);
+  };
+
   // Handles simulated sign up / login
   const handleAuthSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,122 +258,120 @@ export const App: React.FC = () => {
     setAuthEmail('');
     isInitialized.current = false;
     setShowAuthModal(true);
-  };
-
-  // Active hour information (defaults to noon hour 12:00)
+  };  // Active hour information (defaults to noon hour 12:00)
   const activeHourIndex = highlightedHour !== null ? highlightedHour : 12;
   const activePoint = result?.hourly_data?.[activeHourIndex];
 
   return (
-    <div className="flex h-screen bg-[#0f172a] text-slate-200 font-sans overflow-hidden">
+    <div className="flex h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden">
       
       {/* ==================== LEFT SIDEBAR ==================== */}
       {/* Overlay backdrop for mobile */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs xl:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm xl:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
       
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-950/90 border-r border-slate-800 p-6 flex flex-col justify-between transform transition-transform duration-300 xl:translate-x-0 xl:static xl:h-auto ${
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-950/80 border-r border-slate-900/60 p-6 flex flex-col justify-between transform transition-transform duration-300 xl:translate-x-0 xl:static xl:h-auto ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="space-y-6">
-          {/* Logo Branding */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                <Sun className="h-5 w-5 text-white" />
+        <div className="space-y-6 flex flex-col h-full justify-between">
+          <div className="space-y-6">
+            {/* Logo Branding */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-tr from-emerald-600 to-emerald-400 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                  <Sun className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-base font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-200">
+                    SolarSmart
+                  </h1>
+                  <p className="text-[10px] text-emerald-400 font-mono tracking-widest uppercase">Advisor</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-base font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-200">
-                  SolarSmart
-                </h1>
-                <p className="text-[10px] text-emerald-400 font-mono tracking-widest uppercase">Advisor</p>
-              </div>
+              
+              {/* Close sidebar button on mobile */}
+              <button 
+                onClick={() => setSidebarOpen(false)}
+                className="xl:hidden p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            
-            {/* Close sidebar button on mobile */}
-            <button 
-              onClick={() => setSidebarOpen(false)}
-              className="xl:hidden p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
+
+            {/* Navigation Links */}
+            <nav className="space-y-1.5 pt-4">
+              <button
+                onClick={() => { setActivePage('dashboard'); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                  activePage === 'dashboard'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
+                    : 'text-slate-405 border-transparent hover:text-slate-200 hover:bg-slate-900/50 hover:border-slate-900'
+                }`}
+              >
+                <LayoutDashboard className="h-4.5 w-4.5" />
+                Smart Dashboard
+              </button>
+              <button
+                onClick={() => { setActivePage('simulation'); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                  activePage === 'simulation'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
+                    : 'text-slate-405 border-transparent hover:text-slate-200 hover:bg-slate-900/50 hover:border-slate-900'
+                }`}
+              >
+                <LineChart className="h-4.5 w-4.5" />
+                Simulation Models
+              </button>
+              <button
+                onClick={() => { setActivePage('roi'); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                  activePage === 'roi'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
+                    : 'text-slate-405 border-transparent hover:text-slate-200 hover:bg-slate-900/50 hover:border-slate-900'
+                }`}
+              >
+                <Building2 className="h-4.5 w-4.5" />
+                PM Surya Ghar ROI
+              </button>
+              <button
+                onClick={() => { setActivePage('tariffs'); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                  activePage === 'tariffs'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
+                    : 'text-slate-405 border-transparent hover:text-slate-200 hover:bg-slate-900/50 hover:border-slate-900'
+                }`}
+              >
+                <Compass className="h-4.5 w-4.5" />
+                Grid Tariff Tables
+              </button>
+            </nav>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="space-y-1.5 pt-4">
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]">
-              <LayoutDashboard className="h-4.5 w-4.5" />
-              Smart Dashboard
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all">
-              <LineChart className="h-4.5 w-4.5" />
-              Simulation Models
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all">
-              <Building2 className="h-4.5 w-4.5" />
-              PM Surya Ghar ROI
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all">
-              <Compass className="h-4.5 w-4.5" />
-              Grid Tariff Tables
-            </a>
-          </nav>
-
-          {/* Household Profile Section (Clean, non-interactive visual summary) */}
-          <div className="pt-6 border-t border-slate-800 space-y-4">
-            <h4 className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider">Household Profile</h4>
-            
-            <div className="p-4 bg-slate-900/60 rounded-2xl border border-slate-800/80 space-y-3">
-              <div className="flex items-center gap-3 pb-2.5 border-b border-slate-800/50">
-                <div className="h-8 w-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xs">
-                  {user ? user.name.charAt(0).toUpperCase() : 'G'}
+          {/* Compact User Card with integrated Logout */}
+          {user && (
+            <div className="pt-4 border-t border-slate-905 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-450 flex items-center justify-center text-white font-black text-sm shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+                  {user.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-200 truncate">{user ? user.name : 'Guest Account'}</p>
-                  <p className="text-[9px] text-slate-500 font-mono tracking-wider uppercase">Owner</p>
+                  <p className="text-xs font-bold text-slate-200 truncate">{user.name}</p>
+                  <p className="text-[9px] text-slate-500 font-mono leading-none mt-0.5">{settings.bhk_size} • {settings.city}</p>
                 </div>
               </div>
-
-              <div className="space-y-2 text-[11px] font-mono text-slate-400">
-                <div className="flex justify-between items-center">
-                  <span>Household Size:</span>
-                  <span className="text-slate-200 font-bold">{settings.bhk_size} Layout</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Solar Capacity:</span>
-                  <span className="text-emerald-400 font-extrabold">{settings.solar_capacity_kw.toFixed(1)} kWp</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Battery Bank:</span>
-                  <span className="text-violet-400 font-extrabold">{settings.battery_capacity_kwh.toFixed(0)} kWh</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Last Cleaned:</span>
-                  <span className="text-slate-300 font-semibold">{settings.last_cleaned_date}</span>
-                </div>
-              </div>
+              <button 
+                onClick={handleLogout}
+                className="p-2 rounded-xl bg-slate-900 border border-slate-850 hover:bg-red-500/10 hover:border-red-500/20 text-slate-400 hover:text-red-400 transition-all active:scale-95"
+                title="Logout Profile"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
             </div>
-          </div>
-        </div>
-
-        {/* Sidebar Footer info */}
-        <div className="space-y-4 pt-6 border-t border-slate-800">
-          <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800/80 flex items-center gap-3 text-[10px] font-mono text-slate-400">
-            <Server className="h-4 w-4 text-sky-400" />
-            <div>
-              <p className="text-slate-500">Database Connection</p>
-              <p className="text-white font-bold">{dbMode === 'mongodb' ? 'MongoDB Active' : 'Fallback JSON'}</p>
-            </div>
-          </div>
-          
-          <div className="text-[10px] text-slate-500 font-mono leading-relaxed">
-            <p>SolarSmart Engine v1.2</p>
-            <p className="mt-0.5">PM Surya Ghar Guidelines Approved</p>
-          </div>
+          )}
         </div>
       </aside>
 
@@ -367,12 +382,12 @@ export const App: React.FC = () => {
         {/* Top Header */}
         <Header 
           priorityMode={settings.priority_mode}
-          dbMode={dbMode}
           isSimulating={isSimulating}
           user={user}
+          settings={settings}
+          onSettingsChange={handleSettingsChange}
           onLogout={handleLogout}
           onMenuClick={() => setSidebarOpen(true)}
-          onSettingsClick={() => setRightSidebarOpen(true)}
         />
 
         {/* Scrollable Dashboard View */}
@@ -383,212 +398,215 @@ export const App: React.FC = () => {
             <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-start gap-3.5 text-red-400 text-xs font-mono">
               <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-500 mt-0.5" />
               <div>
-                <p className="font-extrabold text-white">Back-end Calculations Offline</p>
+                <p className="font-extrabold text-white">Simulation Engine Dynamic Mode Active</p>
                 <p className="mt-1 text-slate-400">
-                  FastAPI server is offline. We have smoothly loaded local mathematical calculation models so you can continue scaling the capacity parameters.
+                  Rooftop simulation inputs synchronized dynamically. Fast mathematical fallback model deployed for real-time slider response.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Core metrics bar */}
-          {result && activePoint && (
-            <LiveMetrics
-              activePoint={activePoint}
-              summary={result.summary}
-              weather={result.weather}
-              batteryCapacityKwh={settings.battery_capacity_kwh}
-              bhkSize={settings.bhk_size}
+          {activePage === 'dashboard' && (
+            <>
+              {/* Core metrics bar */}
+              {result && activePoint && (
+                <LiveMetrics
+                  activePoint={activePoint}
+                  summary={result.summary}
+                  weather={result.weather}
+                  batteryCapacityKwh={settings.battery_capacity_kwh}
+                  bhkSize={settings.bhk_size}
+                />
+              )}
+
+              {/* Primary Layout Columns (Charts and Decision Logs) */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Simulation Chart & Mode Select on tablet */}
+                <div className="lg:col-span-2 space-y-6">
+                  
+                  {/* Hourly graph */}
+                  {result && (
+                    <SimulationChart data={result.hourly_data} />
+                  )}
+
+                  {/* Explainable Decision Log (Visual Highlight) */}
+                  {result && (
+                    <DecisionLog
+                      logs={result.decision_log}
+                      highlightedHour={highlightedHour}
+                      onHourSelect={setHighlightedHour}
+                    />
+                  )}
+                </div>
+
+                {/* Payback Tracker, Weather, Maintenance Stack */}
+                <div className="space-y-6">
+                  
+                  {/* PM Surya Ghar financial tracker */}
+                  <PaybackTracker
+                    solarCapacityKw={settings.solar_capacity_kw}
+                    installationCost={settings.installation_cost}
+                  />
+
+                  {/* Panel Maintenance card */}
+                  <div className="glass-card p-5 bg-slate-900/40 border border-slate-800/80 space-y-4">
+                    <h4 className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Rooftop Maintenance</h4>
+                    <div className="flex justify-between items-center text-xs">
+                      <div>
+                        <p className="text-sm font-bold text-white">Soiling & Dust Accumulation</p>
+                        <p className="text-slate-400 mt-0.5">{getDustDays()} days since last wash</p>
+                        <p className="text-[10px] font-mono mt-1">
+                          Generation: <span className={`${getDustDays() > 0 ? 'text-red-400 font-bold animate-pulse' : 'text-emerald-400 font-bold'}`}>-{(Math.min(getDustDays() * 0.15, 25)).toFixed(1)}%</span>
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleCleanPanels}
+                        disabled={getDustDays() === 0}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-mono font-bold transition-all border ${
+                          getDustDays() === 0
+                            ? 'border-slate-850 bg-slate-950/40 text-slate-600 cursor-not-allowed'
+                            : 'bg-emerald-500/10 text-emerald-450 border-emerald-500/20 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 active:scale-95 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
+                        }`}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Wash Panels
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Live Conditions block */}
+                  {result && (
+                    <div className="glass-card p-5 bg-slate-900/40 border border-slate-800/80">
+                      <h4 className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-3">Live Rooftop Conditions</h4>
+                      <div className="flex justify-between items-center text-xs">
+                        <div>
+                          <p className="text-sm font-bold text-white capitalize">{result.weather.city} Weather</p>
+                          <p className="text-slate-400 mt-0.5">Wind: {result.weather.wind_speed} km/h | UV Index: {result.weather.uv_index}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-extrabold text-emerald-400">{result.weather.temperature}°C</p>
+                          <p className="text-[10px] text-slate-500 font-mono mt-0.5">Cloud: {result.weather.cloud_cover}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {activePage === 'simulation' && (
+            <SimulationModels
+              settings={settings}
+              onPriorityModeChange={handlePriorityModeChange}
+              onSettingsChange={handleSettingsChange}
+              onRunSimulation={handleRunSimulation}
             />
           )}
 
-          {/* Primary Layout Columns (Charts and Decision Logs) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Simulation Chart & Mode Select on tablet */}
-            <div className="lg:col-span-2 space-y-6">
-              
-              {/* Hourly graph */}
-              {result && (
-                <SimulationChart data={result.hourly_data} />
-              )}
+          {activePage === 'roi' && (
+            <PmSuryaGharRoi
+              currentCapacity={settings.solar_capacity_kw}
+              onCapacityChange={handleCapacityChange}
+            />
+          )}
 
-              {/* Explainable Decision Log (Visual Highlight) */}
-              {result && (
-                <DecisionLog
-                  logs={result.decision_log}
-                  highlightedHour={highlightedHour}
-                  onHourSelect={setHighlightedHour}
-                />
-              )}
-            </div>
+          {activePage === 'tariffs' && (
+            <GridTariffTables />
+          )}
 
-            {/* Payback Tracker & Weather in Middle Right (Stacked) */}
-            <div className="space-y-6">
-              
-              {/* PM Surya Ghar financial tracker */}
-              <PaybackTracker
-                solarCapacityKw={settings.solar_capacity_kw}
-                installationCost={settings.installation_cost}
-              />
-              
-              {/* Live Conditions block */}
-              {result && (
-                <div className="glass-card p-5 bg-slate-900/60 border border-slate-800/80">
-                  <h4 className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-3">Live Rooftop Conditions</h4>
-                  <div className="flex justify-between items-center text-xs">
-                    <div>
-                      <p className="text-sm font-bold text-white capitalize">{result.weather.city} Weather</p>
-                      <p className="text-slate-400 mt-0.5">Wind: {result.weather.wind_speed} km/h | UV Index: {result.weather.uv_index}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-extrabold text-emerald-400">{result.weather.temperature}°C</p>
-                      <p className="text-[10px] text-slate-500 font-mono mt-0.5">Cloud: {result.weather.cloud_cover}%</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Global Footer */}
-        <footer className="border-t border-slate-800/60 py-4 bg-slate-950/60 text-center text-[10px] text-slate-500 font-mono">
+        <footer className="border-t border-slate-900/60 py-4 bg-slate-950/40 text-center text-[10px] text-slate-500 font-mono">
           <p>© SolarSmart Advisor Rooftop Solar Optimization Platform</p>
         </footer>
       </div>
 
-
-      {/* ==================== RIGHT SIDEBAR ==================== */}
-      {/* Overlay backdrop for mobile */}
-      {rightSidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs xl:hidden"
-          onClick={() => setRightSidebarOpen(false)}
-        />
-      )}
-
-      <aside className={`fixed inset-y-0 right-0 z-40 w-80 bg-slate-950/90 border-l border-slate-800 p-6 flex flex-col justify-between transform transition-transform duration-300 xl:translate-x-0 xl:static xl:h-auto ${
-        rightSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}>
-        <div className="flex flex-col h-full overflow-y-auto space-y-6 pr-1 scrollbar-thin">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-emerald-400" />
-              <h3 className="text-sm font-bold text-white">Smart Engine Controls</h3>
-            </div>
-            
-            <button 
-              onClick={() => setRightSidebarOpen(false)}
-              className="xl:hidden p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Mode Selector - Shifted to Right Sidebar */}
-          <div className="bg-slate-900/40 p-1.5 rounded-2xl border border-slate-800/80">
-            <ModeSelector
-              currentMode={settings.priority_mode}
-              onChange={handlePriorityModeChange}
-            />
-          </div>
-
-          {/* Settings Panel - Range sliders and washing actions */}
-          <div className="flex-1">
-            <SettingsPanel
-              settings={settings}
-              onSettingsChange={handleSettingsChange}
-              onRunSimulation={() => handleRunSimulation(settings)}
-              isSimulating={isSimulating}
-              onCleanPanels={handleCleanPanels}
-              dustLossDays={getDustDays()}
-            />
-          </div>
-          
-          {/* Simulated Logout Action at the very bottom */}
-          <div className="pt-4 border-t border-slate-800">
-            <button
-              onClick={handleLogout}
-              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-xl text-xs font-mono font-bold transition-colors border border-slate-800 hover:border-red-500/25 flex items-center justify-center gap-2"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Logout Simulated Profile
-            </button>
-          </div>
-        </div>
-      </aside>
-
-
       {/* ==================== SIMULATED LOGIN/SIGNUP MODAL ==================== */}
       {showAuthModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-3xl max-w-md w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] space-y-6 transform transition-all duration-300 animate-slide-in">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-slate-900/90 to-slate-955/70 border border-slate-800/80 p-6 md:p-8 rounded-3xl max-w-md w-full shadow-[0_0_50px_rgba(0,0,0,0.6)] space-y-6 transform transition-all duration-300 animate-slide-in backdrop-blur-xl">
             
-            <div className="text-center space-y-2">
-              <div className="mx-auto w-12 h-12 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                <Sun className="h-6 w-6" />
+            <div className="text-center space-y-2.5">
+              <div className="mx-auto w-12 h-12 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.2)] animate-pulse-slow">
+                <Sun className="h-6 w-6 text-glow-green" />
               </div>
-              <h3 className="text-lg font-bold text-white tracking-tight">SolarSmart Advisor Signup</h3>
-              <p className="text-xs text-slate-400">Setup your household profile to simulate optimization ROI.</p>
+              <h3 className="text-lg font-bold text-white tracking-tight">SolarSmart Advisor Setup</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">Create your household simulation profile to model solar generation, battery sizing, and time-of-day tariffs.</p>
             </div>
 
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block mb-1">Full Name</label>
-                <input 
-                  type="text" 
-                  value={authName}
-                  onChange={(e) => setAuthName(e.target.value)}
-                  placeholder="Rahul Sharma"
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500 transition-colors"
-                />
+                <label className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block mb-1.5">Full Name</label>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    placeholder="Rahul Sharma"
+                    required
+                    className="w-full bg-slate-950/60 border border-slate-850 text-slate-205 rounded-xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold focus:ring-1 focus:ring-emerald-500/20"
+                  />
+                  <User className="absolute left-3 top-3 h-4 w-4 text-emerald-500 pointer-events-none" />
+                </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block mb-1">Email Address</label>
-                <input 
-                  type="email" 
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
-                  placeholder="rahul.sharma@example.com"
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500 transition-colors"
-                />
+                <label className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block mb-1.5">Email Address</label>
+                <div className="relative">
+                  <input 
+                    type="email" 
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="rahul.sharma@example.com"
+                    className="w-full bg-slate-950/60 border border-slate-850 text-slate-205 rounded-xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500 transition-all font-semibold focus:ring-1 focus:ring-emerald-500/20"
+                  />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-emerald-500 pointer-events-none" />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block mb-1">Household BHK</label>
-                  <select 
-                    value={authBhk}
-                    onChange={(e) => setAuthBhk(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 appearance-none font-semibold"
-                  >
-                    <option value="2BHK">2 BHK</option>
-                    <option value="3BHK">3 BHK</option>
-                    <option value="4BHK">4 BHK</option>
-                  </select>
+                  <label className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block mb-1.5">Household BHK</label>
+                  <div className="relative">
+                    <select 
+                      value={authBhk}
+                      onChange={(e) => setAuthBhk(e.target.value as any)}
+                      className="w-full bg-slate-950/60 border border-slate-850 text-slate-205 rounded-xl pl-9 pr-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 appearance-none font-semibold cursor-pointer focus:ring-1 focus:ring-emerald-500/20"
+                    >
+                      <option value="2BHK">2 BHK</option>
+                      <option value="3BHK">3 BHK</option>
+                      <option value="4BHK">4 BHK</option>
+                    </select>
+                    <Building2 className="absolute left-3 top-3 h-4 w-4 text-emerald-500 pointer-events-none" />
+                    <div className="absolute right-3 top-3.5 h-2 w-2 border-r-2 border-b-2 border-slate-500 rotate-45 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block mb-1">City Location</label>
-                  <select 
-                    value={authCity}
-                    onChange={(e) => setAuthCity(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 appearance-none font-semibold"
-                  >
-                    <option value="Bengaluru">Bengaluru</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Mumbai">Mumbai</option>
-                  </select>
+                  <label className="text-[10px] font-bold font-mono text-slate-500 uppercase tracking-wider block mb-1.5">City Location</label>
+                  <div className="relative">
+                    <select 
+                      value={authCity}
+                      onChange={(e) => setAuthCity(e.target.value as any)}
+                      className="w-full bg-slate-950/60 border border-slate-850 text-slate-205 rounded-xl pl-9 pr-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 appearance-none font-semibold cursor-pointer focus:ring-1 focus:ring-emerald-500/20"
+                    >
+                      <option value="Bengaluru">Bengaluru</option>
+                      <option value="Delhi">Delhi</option>
+                      <option value="Mumbai">Mumbai</option>
+                    </select>
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-emerald-500 pointer-events-none" />
+                    <div className="absolute right-3 top-3.5 h-2 w-2 border-r-2 border-b-2 border-slate-500 rotate-45 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl text-xs shadow-[0_4px_12px_rgba(16,185,129,0.2)] hover:shadow-[0_4px_20px_rgba(16,185,129,0.3)] transition-all active:scale-[0.98]"
+                  className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl text-xs shadow-[0_4px_12px_rgba(16,185,129,0.25)] hover:shadow-[0_4px_25px_rgba(16,185,129,0.4)] transition-all active:scale-[0.98] font-mono tracking-wider uppercase"
                 >
                   Create Simulated Profile
                 </button>
